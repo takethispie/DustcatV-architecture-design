@@ -1,13 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <RootNamespace>DustcatV_architecture_design</RootNamespace>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <RootNamespace>DustcatV_architecture_design</RootNamespace>
   </PropertyGroup>
-
   <ItemGroup>
+    <Compile Include="UnitTypes.fs" />
+    <Compile Include="Unit.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-
 </Project>

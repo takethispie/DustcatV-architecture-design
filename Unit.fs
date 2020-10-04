@@ -2,6 +2,10 @@ namespace DustcatV
 
 open System;
 
+module FunctionalUnit =
+    let FunctionalUnit (op: string, Vj: string, Vk: string): string = 
+        ""
+
 module ExecutionUnitModule =
 
     let IsEmpty unit =
@@ -9,19 +13,78 @@ module ExecutionUnitModule =
         | Empty(_) -> true
         | _ -> false
 
-    let BookReservationStation (station: ReservationStationUnit, inst: int, Qj: int, Qk: int): ReservationStationUnit =
+    let BookReservationStation (station: ReservationStationUnit, inst: string, Qj: int, Qk: int) =
         let newState = 
             match station.State with
-            | Empty id -> Busy(id, inst, Qj, Qk)
-            | _ -> raise(Exception("reservation station in unknown / wrong state"))
-        { Id = station.Id; State = newState; Qj = Qj; Qk = Qk; Vk = 0; Vj = 0 }
+            | Empty state -> Waiting state
+            | _ -> raise(Exception("reservation station state in unknown / wrong state"))
+        { Id = station.Id; State = newState; Qj = Qj; Qk = Qk; Vk = "0"; Vj = "0"; Op = inst; Result = "" }
+
+    let ResolveSources (state: ReservationState, message: CommonDataBusMessage)  =
+        let (qj, vj) = if state.Qj = message.Source then (0, message.Value) else (state.Qj, "0")
+        let (qk, vk) = if state.Qk = message.Source then (0, message.Value) else (state.Qk, "0")
+        {Id = state.Id; Op = state.Op; Qj = qj; Qk = qk; Vj = vj; Vk = vk }
+
+    let ProcessCDBMessage (cdbM: CommonDataBusMessage, stations: ReservationStationUnit list) =
+        stations |> List.map(fun item -> 
+            let (newState, values) = 
+                match item.State with
+                | Empty state -> (Empty, state)
+                | Waiting state when state.Qj <> 0 && state.Qk <> 0 -> (Waiting, ResolveSources(state, cdbM))
+                | Waiting state when  state.Qj = 0 && state.Qk = 0 -> (Ready, state)
+                | Ready state -> (Ready, state)
+                | Running state -> (Running, state)
+                | Done state -> (Done, state) 
+                | _ -> raise(Exception("unknown state"))
+            { Id = values.Id; Op = values.Op; Qj = values.Qj; Qk = values.Qk; Vj = values.Vj; Vk = values.Vk; State = newState(values); Result = "" }
+        )
+
+
+    let updateElement (itemToUpdate: ReservationStationUnit, items: ReservationStationUnit list) = 
+        items |> List.map (fun v -> if v.Id = itemToUpdate.Id then itemToUpdate else v)
+
+    let RunReadyStation (cdbM: CommonDataBusMessage, stations: ReservationStationUnit list) =
+        let runnableStation = stations |> List.where(fun it -> 
+            match it.State with
+            | Ready(_) -> true
+            | _ -> false
+        )
+        let st = runnableStation.Head
+        let result = FunctionalUnit.FunctionalUnit(st.Op, st.Vj, st.Vk)
+        let newState = 
+            match st.State with
+            | Empty state -> Empty state
+            | Waiting state-> Waiting state
+            | Ready state -> Running state
+            | Running state -> Running state
+            | Done state -> Done state
+        let updatedStation = { Id = st.Id; Op = st.Op; Qj = st.Qj; Qk = st.Qk; Vj = st.Vj; Vk = st.Vk; State = newState; Result = result}
+        updateElement(updatedStation, stations)
         
+    let CleanupAndSendCDBMessage (stations: ReservationStationUnit list) =
+        let mutable mess = { Source = 0; Value = "0";};
+        stations |> List.map(fun item -> 
+            let newState = 
+                match item.State with
+                | Empty state -> Empty state
+                | Waiting state-> Waiting state
+                | Ready state -> Ready state
+                | Running state -> Done state
+                | Done state -> Empty state
+                | _ -> raise(Exception("unknown state"))
+            let result = { Id = item.Id; Op = item.Op; Qj = item.Qj; Qk = item.Qk; Vj = item.Vj; Vk = item.Vk; State = newState; Result = item.Result}
+            if item.Result <> "" then mess <- { Source = item.Id; Value = item.Result }
+            result
+        )
 
-    let updateElement (id: int, items: ReservationStationUnit list, itemToUpdate: ReservationStationUnit) = 
-        items |> List.map (fun v -> if v.Id = id then itemToUpdate else v)
-
-    let ExecutionUnit (instruction: int, Qj: int, Qk: int, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ): ExecutionUnit * CommonDataBusMessage =
+    let ExecutionUnit (instruction: string, Qj: int, Qk: int, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ): ExecutionUnit * CommonDataBusMessage =
         let empty = exUnit.ReservationStations |> List.where(IsEmpty) 
-        let updated = if instruction > 0 then BookReservationStation(empty.Head, instruction, Qj, Qk) else empty.Head
-        let updatedExUnit: ExecutionUnit = { ReservationStations = updateElement(updated.Id, exUnit.ReservationStations, updated) } 
-        ( updatedExUnit, cdbIn)
+        let updatedStations = 
+            if instruction <> "" 
+            then updateElement(BookReservationStation(empty.Head, instruction, Qj, Qk), exUnit.ReservationStations) 
+            else exUnit.ReservationStations
+        let processedStations = ProcessCDBMessage(cdbIn, updatedStations)
+        let resultStations = processedStations;
+        let free = not (List.isEmpty (resultStations |> List.where(IsEmpty)))
+        let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
+        (updatedExUnit, cdbIn)

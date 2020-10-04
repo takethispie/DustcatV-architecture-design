@@ -3,15 +3,17 @@ namespace DustcatV
 [<AutoOpen>]
 module UnitTypes =
 
-    type CommonDataBusMessage = { Source: int; Value: int }
+    type CommonDataBusMessage = { Source: int; Value: string }
+
+    type ReservationState = { Id: int; Op: string; Qj: int; Qk: int; Vj: string; Vk: string}
 
     type ReservationStationUnitState =
-        | Empty of id: int
-        | Busy of id: int * op: int * Qj: int * Qk: int
-        | Running of id: int * Vj: int * Vk: int
-        | HandlingMessage of id: int * cdb: CommonDataBusMessage
-        | Done of id: int * result: int
+        | Empty of ReservationState
+        | Waiting of ReservationState
+        | Ready of ReservationState
+        | Running of ReservationState
+        | Done of ReservationState
 
-    type ReservationStationUnit = { Id: int; Qj: int; Qk: int; Vj: int; Vk: int; State: ReservationStationUnitState }
+    type ReservationStationUnit = { Id: int; Op: string; Qj: int; Qk: int; Vj: string; Vk: string; State: ReservationStationUnitState; Result: string }
 
-    type ExecutionUnit = { ReservationStations: ReservationStationUnit list;  }
+    type ExecutionUnit = { ReservationStations: ReservationStationUnit list; HasFreeStation: bool  }

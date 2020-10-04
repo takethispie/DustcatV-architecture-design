@@ -61,9 +61,9 @@ module ExecutionUnitModule =
         let updatedStation = { Id = st.Id; Op = st.Op; Qj = st.Qj; Qk = st.Qk; Vj = st.Vj; Vk = st.Vk; State = newState; Result = result}
         updateElement(updatedStation, stations)
         
-    let CleanupAndSendCDBMessage (stations: ReservationStationUnit list) =
+    let CleanupAndBuildCDBMessage (stations: ReservationStationUnit list) =
         let mutable mess = { Source = 0; Value = "0";};
-        stations |> List.map(fun item -> 
+        let updatedStations = stations |> List.map(fun item -> 
             let newState = 
                 match item.State with
                 | Empty state -> Empty state
@@ -76,15 +76,16 @@ module ExecutionUnitModule =
             if item.Result <> "" then mess <- { Source = item.Id; Value = item.Result }
             result
         )
+        (updatedStations, mess)
 
     let ExecutionUnit (instruction: string, Qj: int, Qk: int, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ): ExecutionUnit * CommonDataBusMessage =
         let empty = exUnit.ReservationStations |> List.where(IsEmpty) 
         let updatedStations = 
-            if instruction <> "" 
+            if instruction <> "" && not(List.isEmpty(empty))
             then updateElement(BookReservationStation(empty.Head, instruction, Qj, Qk), exUnit.ReservationStations) 
             else exUnit.ReservationStations
         let processedStations = ProcessCDBMessage(cdbIn, updatedStations)
-        let resultStations = processedStations;
+        let (resultStations, mess) = CleanupAndBuildCDBMessage(processedStations);
         let free = not (List.isEmpty (resultStations |> List.where(IsEmpty)))
         let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
-        (updatedExUnit, cdbIn)
+        (updatedExUnit, mess)

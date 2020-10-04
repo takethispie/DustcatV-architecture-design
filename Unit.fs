@@ -26,7 +26,9 @@ module ExecutionUnitModule =
         {Id = state.Id; Op = state.Op; Qj = qj; Qk = qk; Vj = vj; Vk = vk }
 
     let ProcessCDBMessage (cdbM: CommonDataBusMessage, stations: ReservationStationUnit list) =
-        stations |> List.map(fun item -> 
+        if cdbM.Source = 0 
+        then stations 
+        else stations |> List.map(fun item -> 
             let (newState, values) = 
                 match item.State with
                 | Empty state -> (Empty, state)

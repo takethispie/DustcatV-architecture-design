@@ -71,11 +71,11 @@ module ExecutionUnitModule =
                 | Empty state -> Empty state
                 | Waiting state-> Waiting state
                 | Ready state -> Ready state
-                | Running state -> Done state
+                | Running state -> 
+                    if item.Result <> "" then mess <- { Source = item.Id; Value = item.Result }
+                    Done state
                 | Done state -> Empty state
-                | _ -> raise(Exception("unknown state"))
             let result = { Id = item.Id; Op = item.Op; Qj = item.Qj; Qk = item.Qk; Vj = item.Vj; Vk = item.Vk; State = newState; Result = item.Result}
-            if item.Result <> "" then mess <- { Source = item.Id; Value = item.Result }
             result
         )
         (updatedStations, mess)

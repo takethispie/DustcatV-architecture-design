@@ -12,8 +12,14 @@ module UnitTypes =
         | Waiting of ReservationState
         | Ready of ReservationState
         | Running of ReservationState
-        | Done of ReservationState
 
     type ReservationStationUnit = { Id: int; State: ReservationStationUnitState; Result: string }
 
     type ExecutionUnit = { ReservationStations: ReservationStationUnit list; HasFreeStation: bool  }
+
+    type InstructionType =
+    | Integer 
+    | LoadStore
+    | None
+
+    type Instruction = { Op: string; Qj: int; Qk: int; Qt: int; Imm: string; Type: InstructionType}

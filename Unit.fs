@@ -45,7 +45,6 @@ module ExecutionStageUnitsModule =
                 | Waiting state when state.Qj <> 0 && state.Qk <> 0 -> (Waiting, ResolveSources(state, cdbM))
                 | Ready state -> (Ready, state)
                 | Running state -> (Running, state)
-                | Done state -> (Done, state) 
                 | _ -> raise(Exception("unknown state"))
             { Id = item.Id; State = newState(values); Result = "" }
         )
@@ -59,7 +58,6 @@ module ExecutionStageUnitsModule =
                 | Waiting state-> Waiting state
                 | Ready state -> Ready state
                 | Running state -> Running state
-                | Done state -> Empty state
             { Id = item.Id; State = newState; Result = item.Result}
         )
         updatedStations
@@ -86,7 +84,6 @@ module ExecutionStageUnitsModule =
                 result <- FunctionalUnit.FunctionalUnit(state.Op, state.Vj, state.Vk)
                 Running state
             | Running _ -> raise(Exception("already running station"))
-            | Done state -> Done state
         let updatedStation = { Id = st.Id; State = newState; Result = result}
         updateElement(updatedStation, stations)
 
@@ -99,10 +96,9 @@ module ExecutionStageUnitsModule =
                 | Empty state -> Empty state
                 | Waiting state-> Waiting state
                 | Ready state -> Ready state
-                | Running state -> 
+                | Running _ -> 
                     if item.Result <> "" then mess <- { Source = item.Id; Value = item.Result }
-                    Done state
-                | Done state -> Empty state
+                    Empty { Op = ""; Qj = 0; Qk = 0; Vj = ""; Vk = ""; }
             let result = { Id = item.Id; State = newState; Result = item.Result}
             result
         )
@@ -124,6 +120,48 @@ module ExecutionStageUnitsModule =
         (updatedExUnit, mess)
 
 
-    let LoadStoreUnit (instruction: string, offsetSource: int, cdbin: CommonDataBusMessage, exUnit: ExecutionUnit ) =
+    let LoadStoreUnit (instruction: string, offsetSource: int, imm: string, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ) =
+        let empty = exUnit.ReservationStations |> List.where(IsEmpty)
+        let updatedStations = 
+            if instruction <> "" && not(List.isEmpty(empty))
+            then 
+                let st = empty.Head
+                updateElement({ Id = st.Id; State = Waiting { Op = instruction;  Qj = offsetSource; Qk = 0; Vj = ""; Vk = imm; }; Result = "" }, exUnit.ReservationStations) 
+            else exUnit.ReservationStations
+        let processedStations = ProcessCDBMessage(cdbIn, updatedStations)
+        let uptoDateStations = UpdateStationState(processedStations)
         0
     
+
+module DecodeStageUnitsModule =
+    let rec intToBinary i =
+        match i with
+        | 0 | 1 -> string i
+        | _ ->
+            let bit = string (i % 2)
+            (intToBinary (i / 2)) + bit
+
+            
+    let InstructionDecode (inst: string): Instruction =
+        let binary = (inst |> int) |> intToBinary 
+        let op = binary.Substring(0, 8)
+        let target = int(binary.Substring(8, 4))
+        let source1 = int(binary.Substring(12, 4))
+        let source2 = int(binary.Substring(16, 4))
+        let imm = binary.Substring(16, 16)
+        match op.ToLower() with
+        | "add" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
+        | "addi" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
+        | "sub" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer;  }
+        | "subi" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
+        | "mul" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer;  }
+        | "muli" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
+        | "div" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer;  }
+        | "divi" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
+        | _ -> { Op = ""; Qj = 0; Qk = 0; Qt = 0; Imm = ""; Type = None;  }
+
+module RegisterRenaming =
+    let ReorderBufer =
+        0
+
+    let mutable InstructionQueue: Instruction list = [] 

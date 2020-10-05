@@ -1,5 +1,6 @@
 namespace DustcatV
 open ExecutionStageUnitsModule
+open DecodeStageUnitsModule
 open System.Collections.Generic
 
 module Cpu =
@@ -16,4 +17,14 @@ module Cpu =
                 ]; 
                 HasFreeStation = true; 
             }
+        for inst in instructions do
+            let decoded = InstructionDecode(inst);
+            let source = if decoded.Imm <> "" then IEU.ReservationStations.Length else 0
+            let value = if decoded.Imm <> "" then decoded.Imm else ""
+            let cdbMessage = { Source = source;  Value = value; }
+            let mutable (exunit, message) = 
+                match decoded.Type with
+                | Integer -> IntegerExecutionUnit(decoded.Op, decoded.Qj, decoded.Qk, cdbMessage, IEU)
+                | _ -> (IEU, { Source = 0; Value = ""})
+            ()
         0

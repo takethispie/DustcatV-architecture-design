@@ -68,7 +68,7 @@ module ExecutionStageUnitsModule =
         items |> List.map (fun v -> if v.Id = itemToUpdate.Id then itemToUpdate else v)
 
 
-    let RunReadyStation (stations: ReservationStationUnit list) =
+    let RunReadyStationOnIntegerUnit (stations: ReservationStationUnit list) =
         let runnableStation = stations |> List.where(fun it -> 
             match it.State with
             | Ready(_) -> true
@@ -113,23 +113,50 @@ module ExecutionStageUnitsModule =
             else exUnit.ReservationStations
         let processedStations = ProcessCDBMessage(cdbIn, updatedStations)
         let uptoDateStations = UpdateStationState(processedStations)
-        let afterRunStations = RunReadyStation(uptoDateStations)
+        let afterRunStations = RunReadyStationOnIntegerUnit(uptoDateStations)
         let (resultStations, mess) = CleanupAndBuildCDBMessage(afterRunStations);
         let free = not (List.isEmpty (resultStations |> List.where(IsEmpty)))
         let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
         (updatedExUnit, mess)
 
 
-    let LoadStoreUnit (instruction: string, offsetSource: int, imm: string, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ) =
+    let RunReadyStationOnLoadStoreunit (stations: ReservationStationUnit list)= 
+        let runnableStation = stations |> List.where(fun it -> 
+            match it.State with
+            | Ready(_) -> true
+            | _ -> false
+        )
+        let st = runnableStation.Head
+        let mutable result = ""
+        let newState = 
+            match st.State with
+            | Empty state -> Empty state
+            | Waiting state-> Waiting state
+            | Ready state -> 
+                // TODO
+                Running state
+            | Running _ -> raise(Exception("already running station"))
+        let updatedStation = { Id = st.Id; State = newState; Result = result}
+        updateElement(updatedStation, stations)
+
+
+    let LoadStoreUnit (instruction: string, target: int, address: int, imm: string, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ) =
         let empty = exUnit.ReservationStations |> List.where(IsEmpty)
         let updatedStations = 
             if instruction <> "" && not(List.isEmpty(empty))
             then 
                 let st = empty.Head
-                updateElement({ Id = st.Id; State = Waiting { Op = instruction;  Qj = offsetSource; Qk = 0; Vj = ""; Vk = imm; }; Result = "" }, exUnit.ReservationStations) 
+                if target <> 0 
+                then updateElement({ Id = st.Id; State = Waiting { Op = instruction;  Qj = address; Qk = 0; Vj = ""; Vk = imm; }; Result = "" }, exUnit.ReservationStations) 
+                else updateElement({ Id = st.Id; State = Waiting { Op = instruction;  Qj = address; Qk = 0; Vj = ""; Vk = target.ToString(); }; Result = "" }, exUnit.ReservationStations) 
             else exUnit.ReservationStations
         let processedStations = ProcessCDBMessage(cdbIn, updatedStations)
         let uptoDateStations = UpdateStationState(processedStations)
+        let afterRunStations = RunReadyStationOnLoadStoreunit(uptoDateStations)
+        let (resultStations, mess) = CleanupAndBuildCDBMessage(afterRunStations);
+        let free = not (List.isEmpty (resultStations |> List.where(IsEmpty)))
+        let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
+        (updatedExUnit, mess)
         0
     
 
@@ -142,7 +169,7 @@ module DecodeStageUnitsModule =
             (intToBinary (i / 2)) + bit
 
             
-    let InstructionDecode (inst: string): Instruction =
+    let InstructionDecode (inst: string) =
         let binary = (inst |> int) |> intToBinary 
         let op = binary.Substring(0, 8)
         let target = int(binary.Substring(8, 4))
@@ -164,4 +191,4 @@ module RegisterRenaming =
     let ReorderBufer =
         0
 
-    let mutable InstructionQueue: Instruction list = [] 
+    let mutable InstructionQueue: Instruction list = []

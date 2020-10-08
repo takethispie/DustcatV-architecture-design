@@ -5,16 +5,4 @@ open ExecutionStageUnitsModule
 
 [<EntryPoint>]
 let main argv =
-    let IEU: ExecutionUnit = 
-        { 
-            ReservationStations = [
-                { Id = 1; State = Empty { Op = ""; Qj = 0; Qk = 0; Vj = ""; Vk = ""; }; Result = ""}
-                { Id = 2; State = Empty { Op = ""; Qj = 0; Qk = 0; Vj = ""; Vk = ""; }; Result = ""}
-                { Id = 3; State = Empty { Op = ""; Qj = 0; Qk = 0; Vj = ""; Vk = ""; }; Result = ""}
-                { Id = 4; State = Empty { Op = ""; Qj = 0; Qk = 0; Vj = ""; Vk = ""; }; Result = ""}
-            ]; 
-            HasFreeStation = true; 
-        }
-    let (exunit, message) = IntegerExecutionUnit("mul", 1, 1, { Source = 1; Value = "5"}, IEU)
-    let (exunit2, message2) = IntegerExecutionUnit("mul", message.Source, 1, message, exunit)
     0 // return an integer exit code

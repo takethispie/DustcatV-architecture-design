@@ -20,11 +20,14 @@ module ExecutionStageUnitsModule =
         | Empty(_) -> true
         | _ -> false
 
+    let FreeStations stations =
+        stations |> List.where(HasNoInstruction)
 
-    let BookReservationStation (station: ReservationStationUnit, inst: string, Qj: int, Qk: int) =
+
+    let BookReservationStation (station: ReservationStationUnit, inst: string, Qj: int, Qk: int, Vj: string, Vk: string) =
         let newState = 
             match station.State with
-            | Empty _ -> Waiting { Op = inst; Qj = Qj; Qk = Qk; Vj = ""; Vk = ""}
+            | Empty _ -> Waiting { Op = inst; Qj = Qj; Qk = Qk; Vj = Vj; Vk = Vk}
             | _ -> raise(Exception("reservation station state in unknown / wrong state"))
         { Id = station.Id; State = newState;  Result = "" }
 
@@ -35,32 +38,22 @@ module ExecutionStageUnitsModule =
         { Op = state.Op; Qj = qj; Qk = qk; Vj = vj; Vk = vk }
 
 
-    let ProcessCDBMessage (cdbM: CommonDataBusMessage, stations: ReservationStationUnit list) =
+    let UpdateStations (cdbM: CommonDataBusMessage, stations: ReservationStations) =
         if cdbM.Source = 0 
         then stations 
-        else stations |> List.map(fun item -> 
-            let (newState, values) = 
-                match item.State with
-                | Empty state -> (Empty, state)
-                | Waiting state when state.Qj <> 0 && state.Qk <> 0 -> (Waiting, ResolveSources(state, cdbM))
-                | Ready state -> (Ready, state)
-                | Running state -> (Running, state)
-                | _ -> raise(Exception("unknown state"))
-            { Id = item.Id; State = newState(values); Result = "" }
-        )
-
-    let UpdateStationState (stations: ReservationStationUnit list) =
-        let updatedStations = stations |> List.map(fun item -> 
-            let newState = 
+        else stations |> List.map(fun station -> 
+            let rec updateState (item) = 
                 match item.State with
                 | Empty state -> Empty state
-                | Waiting state when  state.Qj = 0 && state.Qk = 0 -> Ready state
-                | Waiting state-> Waiting state
+                | Waiting state when state.Qj <> 0 && state.Qk <> 0 -> 
+                    updateState({ Id = station.Id; State = Waiting (ResolveSources(state, cdbM)); Result = "" })
+                | Waiting state when state.Qj = 0 && state.Qk = 0 -> Ready state
                 | Ready state -> Ready state
                 | Running state -> Running state
-            { Id = item.Id; State = newState; Result = item.Result}
+                | _ -> raise(Exception("unknown state"))
+            let newState = updateState(station)
+            { Id = station.Id; State = newState; Result = "" }
         )
-        updatedStations
 
 
 
@@ -68,56 +61,27 @@ module ExecutionStageUnitsModule =
         items |> List.map (fun v -> if v.Id = itemToUpdate.Id then itemToUpdate else v)
 
 
-    let RunReadyStationOnIntegerUnit (stations: ReservationStationUnit list) =
-        let runnableStation = stations |> List.where(fun it -> 
-            match it.State with
-            | Ready(_) -> true
-            | _ -> false
-        )
-        let st = runnableStation.Head
-        let mutable result = ""
-        let newState = 
+    let IntegerExecutionUnit (st: ReservationStationUnit)  =
+        let (newState, message) =
             match st.State with
-            | Empty state -> Empty state
-            | Waiting state-> Waiting state
             | Ready state -> 
-                result <- FunctionalUnit.FunctionalUnit(state.Op, state.Vj, state.Vk)
-                Running state
-            | Running _ -> raise(Exception("already running station"))
-        let updatedStation = { Id = st.Id; State = newState; Result = result}
-        updateElement(updatedStation, stations)
-
+                let res = 
+                    match state.Op.ToLower() with
+                    | "add" -> ((state.Vj |> int) + (state.Vk |> int)).ToString()  
+                    | "sub" -> ((state.Vj |> int) - (state.Vk |> int)).ToString()
+                    | "mul" -> ((state.Vj |> int) * (state.Vk |> int)).ToString()
+                    | "div" when state.Vk <> "0" -> ((state.Vj |> int) / (state.Vk |> int)).ToString()
+                    | "div" when state.Vk = "0" -> raise(DivideByZeroException())
+                    | _ -> ""
+                ((Running state), { Source = st.Id; Value = res })
+            | _ -> raise(Exception("already running station"))
+        ({ Id = st.Id; State = newState; Result = message.Value}, message)
         
-    let CleanupAndBuildCDBMessage (stations: ReservationStationUnit list) =
-        let mutable mess = { Source = 0; Value = "0";};
-        let updatedStations = stations |> List.map(fun item -> 
-            let newState = 
-                match item.State with
-                | Empty state -> Empty state
-                | Waiting state-> Waiting state
-                | Ready state -> Ready state
-                | Running _ -> 
-                    if item.Result <> "" then mess <- { Source = item.Id; Value = item.Result }
-                    Empty { Op = ""; Qj = 0; Qk = 0; Vj = ""; Vk = ""; }
-            let result = { Id = item.Id; State = newState; Result = item.Result}
-            result
-        )
-        (updatedStations, mess)
-
-
-    let IntegerExecutionUnit (instruction: string, Qj: int, Qk: int, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ): ExecutionUnit * CommonDataBusMessage =
-        let empty = exUnit.ReservationStations |> List.where(HasNoInstruction) 
-        let updatedStations = 
-            if instruction <> "" && not(List.isEmpty(empty))
-            then updateElement(BookReservationStation(empty.Head, instruction, Qj, Qk), exUnit.ReservationStations) 
-            else exUnit.ReservationStations
-        let processedStations = ProcessCDBMessage(cdbIn, updatedStations)
-        let uptoDateStations = UpdateStationState(processedStations)
-        let afterRunStations = RunReadyStationOnIntegerUnit(uptoDateStations)
-        let (resultStations, mess) = CleanupAndBuildCDBMessage(afterRunStations);
-        let free = not (List.isEmpty (resultStations |> List.where(HasNoInstruction)))
-        let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
-        (updatedExUnit, mess)
+    let LoadStoreUnit (st: ReservationStationUnit) =
+        match st.State with
+        | Ready state -> 
+            0
+        | _ -> raise(Exception("already running station"))
 
 
     let RunReadyStationOnLoadStoreunit (stations: ReservationStationUnit list)= 
@@ -138,26 +102,6 @@ module ExecutionStageUnitsModule =
             | Running _ -> raise(Exception("already running station"))
         let updatedStation = { Id = st.Id; State = newState; Result = result}
         updateElement(updatedStation, stations)
-
-
-    let LoadStoreUnit (instruction: string, target: int, address: int, imm: string, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ) =
-        let empty = exUnit.ReservationStations |> List.where(HasNoInstruction)
-        let updatedStations = 
-            if instruction <> "" && not(List.isEmpty(empty))
-            then 
-                let st = empty.Head
-                if target <> 0 
-                then updateElement({ Id = st.Id; State = Waiting { Op = instruction;  Qj = address; Qk = 0; Vj = ""; Vk = imm; }; Result = "" }, exUnit.ReservationStations) 
-                else updateElement({ Id = st.Id; State = Waiting { Op = instruction;  Qj = address; Qk = 0; Vj = ""; Vk = target.ToString(); }; Result = "" }, exUnit.ReservationStations) 
-            else exUnit.ReservationStations
-        let processedStations = ProcessCDBMessage(cdbIn, updatedStations)
-        let uptoDateStations = UpdateStationState(processedStations)
-        let afterRunStations = RunReadyStationOnLoadStoreunit(uptoDateStations)
-        let (resultStations, mess) = CleanupAndBuildCDBMessage(afterRunStations);
-        let free = not (List.isEmpty (resultStations |> List.where(HasNoInstruction)))
-        let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
-        (updatedExUnit, mess)
-        0
     
 
 module DecodeStageUnitsModule =

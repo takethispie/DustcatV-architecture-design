@@ -15,7 +15,7 @@ module UnitTypes =
 
     type ReservationStationUnit = { Id: int; State: ReservationStationUnitState; Result: string }
 
-    type ExecutionUnit = { ReservationStations: ReservationStationUnit list; HasFreeStation: bool  }
+    type ReservationStations = ReservationStationUnit list
 
     type InstructionType =
     | Integer 

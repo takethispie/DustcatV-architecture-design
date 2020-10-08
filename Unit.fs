@@ -15,7 +15,7 @@ module FunctionalUnit =
 
 module ExecutionStageUnitsModule =
 
-    let IsEmpty unit =
+    let HasNoInstruction unit =
         match unit.State with
         | Empty(_) -> true
         | _ -> false
@@ -106,7 +106,7 @@ module ExecutionStageUnitsModule =
 
 
     let IntegerExecutionUnit (instruction: string, Qj: int, Qk: int, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ): ExecutionUnit * CommonDataBusMessage =
-        let empty = exUnit.ReservationStations |> List.where(IsEmpty) 
+        let empty = exUnit.ReservationStations |> List.where(HasNoInstruction) 
         let updatedStations = 
             if instruction <> "" && not(List.isEmpty(empty))
             then updateElement(BookReservationStation(empty.Head, instruction, Qj, Qk), exUnit.ReservationStations) 
@@ -115,7 +115,7 @@ module ExecutionStageUnitsModule =
         let uptoDateStations = UpdateStationState(processedStations)
         let afterRunStations = RunReadyStationOnIntegerUnit(uptoDateStations)
         let (resultStations, mess) = CleanupAndBuildCDBMessage(afterRunStations);
-        let free = not (List.isEmpty (resultStations |> List.where(IsEmpty)))
+        let free = not (List.isEmpty (resultStations |> List.where(HasNoInstruction)))
         let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
         (updatedExUnit, mess)
 
@@ -141,7 +141,7 @@ module ExecutionStageUnitsModule =
 
 
     let LoadStoreUnit (instruction: string, target: int, address: int, imm: string, cdbIn: CommonDataBusMessage, exUnit: ExecutionUnit ) =
-        let empty = exUnit.ReservationStations |> List.where(IsEmpty)
+        let empty = exUnit.ReservationStations |> List.where(HasNoInstruction)
         let updatedStations = 
             if instruction <> "" && not(List.isEmpty(empty))
             then 
@@ -154,7 +154,7 @@ module ExecutionStageUnitsModule =
         let uptoDateStations = UpdateStationState(processedStations)
         let afterRunStations = RunReadyStationOnLoadStoreunit(uptoDateStations)
         let (resultStations, mess) = CleanupAndBuildCDBMessage(afterRunStations);
-        let free = not (List.isEmpty (resultStations |> List.where(IsEmpty)))
+        let free = not (List.isEmpty (resultStations |> List.where(HasNoInstruction)))
         let updatedExUnit = { ReservationStations = resultStations; HasFreeStation = free }
         (updatedExUnit, mess)
         0

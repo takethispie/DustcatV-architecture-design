@@ -16,4 +16,5 @@ let main argv =
             HasFreeStation = true; 
         }
     let (exunit, message) = IntegerExecutionUnit("mul", 1, 1, { Source = 1; Value = "5"}, IEU)
+    let (exunit2, message2) = IntegerExecutionUnit("mul", message.Source, 1, message, exunit)
     0 // return an integer exit code

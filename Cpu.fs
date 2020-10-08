@@ -17,14 +17,27 @@ module Cpu =
                 ]; 
                 HasFreeStation = true; 
             }
-        for inst in instructions do
-            let decoded = InstructionDecode(inst);
-            let source = if decoded.Imm <> "" then IEU.ReservationStations.Length else 0
-            let value = if decoded.Imm <> "" then decoded.Imm else ""
-            let cdbMessage = { Source = source;  Value = value; }
-            let mutable (exunit, message) = 
-                match decoded.Type with
-                | Integer -> IntegerExecutionUnit(decoded.Op, decoded.Qj, decoded.Qk, cdbMessage, IEU)
-                | _ -> (IEU, { Source = 0; Value = ""})
-            ()
+        
+        let rec iter (inst, message, exUnit) = 
+            match inst with
+            | [] -> ()
+            | head::tail -> 
+                let res =
+                    match IEU.HasFreeStation with
+                    | true -> 
+                        let decoded = InstructionDecode(head);
+                        let source = if decoded.Imm <> "" then IEU.ReservationStations.Length else 0
+                        let value = if decoded.Imm <> "" then decoded.Imm else ""
+                        let cdbMessage = { Source = source;  Value = value; }
+                        let (newExUnit, newMessage) = 
+                            match decoded.Type with
+                            | Integer -> IntegerExecutionUnit(decoded.Op, decoded.Qj, decoded.Qk, cdbMessage, IEU)
+                            | _ -> (IEU, { Source = 0; Value = ""})
+                        (tail, newMessage, newExUnit)
+                    | false -> 
+                        let (newExUnit, newMessage) = 
+                            IntegerExecutionUnit("", 0, 0, message, IEU)
+                        (tail, newMessage, newExUnit)
+                iter res
+        iter (instructions, { Source = 0;  Value = ""; }, IEU)
         0

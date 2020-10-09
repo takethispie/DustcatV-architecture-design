@@ -1,7 +1,7 @@
 ﻿// Learn more about F# at http://fsharp.org
 open System
 open DustcatV
-open ExecutionStageUnitsModule
+open ExecutionStageModule
 
 [<EntryPoint>]
 let main argv =

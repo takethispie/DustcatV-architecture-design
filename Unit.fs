@@ -13,7 +13,7 @@ module FunctionalUnit =
         | _ -> ""
 
 
-module ExecutionStageUnitsModule =
+module ExecutionStageModule =
 
     let HasNoInstruction unit =
         match unit.State with
@@ -60,6 +60,9 @@ module ExecutionStageUnitsModule =
     let updateElement (itemToUpdate: ReservationStationUnit, items: ReservationStationUnit list) = 
         items |> List.map (fun v -> if v.Id = itemToUpdate.Id then itemToUpdate else v)
 
+    let mutable LoadStoreBuffer = [
+        
+    ]
 
     let IntegerExecutionUnit (st: ReservationStationUnit)  =
         let (newState, message) =
@@ -83,25 +86,12 @@ module ExecutionStageUnitsModule =
             0
         | _ -> raise(Exception("already running station"))
 
-
-    let RunReadyStationOnLoadStoreunit (stations: ReservationStationUnit list)= 
-        let runnableStation = stations |> List.where(fun it -> 
+    let getRunnableStation stations =
+        stations |> List.where(fun it -> 
             match it.State with
             | Ready(_) -> true
             | _ -> false
         )
-        let st = runnableStation.Head
-        let mutable result = ""
-        let newState = 
-            match st.State with
-            | Empty state -> Empty state
-            | Waiting state-> Waiting state
-            | Ready state -> 
-                // TODO
-                Running state
-            | Running _ -> raise(Exception("already running station"))
-        let updatedStation = { Id = st.Id; State = newState; Result = result}
-        updateElement(updatedStation, stations)
     
 
 module DecodeStageUnitsModule =

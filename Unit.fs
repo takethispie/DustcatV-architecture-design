@@ -60,10 +60,6 @@ module ExecutionStageModule =
     let updateElement (itemToUpdate: ReservationStationUnit, items: ReservationStationUnit list) = 
         items |> List.map (fun v -> if v.Id = itemToUpdate.Id then itemToUpdate else v)
 
-    let mutable LoadStoreBuffer = [
-        
-    ]
-
     let IntegerExecutionUnit (st: ReservationStationUnit)  =
         let (newState, message) =
             match st.State with

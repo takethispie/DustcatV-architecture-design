@@ -32,6 +32,7 @@ module Cpu =
                     if freeStations.IsEmpty
                     then 
                         stations <- UpdateStations(message, stations)
+                        loadStoreStations <- UpdateStations(message, loadStoreStations)
                     else 
                         match InstructionDecode(head) with
                         | decoded -> 
@@ -50,6 +51,7 @@ module Cpu =
                                     loadStoreStations <- updateElement(newLsStation, loadStoreStations)
                             | None -> raise(Exception("unknown instruction type"))
                         stations <- UpdateStations(message, stations)
+                        loadStoreStations <- UpdateStations(message, loadStoreStations)
                     match getRunnableStation(stations) with
                     | [] -> tail, { Source = 0; Value = ""}
                     | firstReady::others -> 

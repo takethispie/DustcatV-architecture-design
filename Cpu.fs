@@ -1,4 +1,5 @@
 namespace DustcatV
+open System
 open ExecutionStageModule
 open DecodeStageUnitsModule
 open System.Collections.Generic
@@ -33,30 +34,21 @@ module Cpu =
                         stations <- UpdateStations(message, stations)
                     else 
                         match InstructionDecode(head) with
-                        | decoded when decoded.Imm = "" -> 
+                        | decoded -> 
                             match decoded.Type with
                             | Integer -> 
-                                let newStation = BookReservationStation(freeStations.Head, decoded.Op, decoded.Qj, decoded.Qk, "", "")
+                                let newStation = 
+                                    BookReservationStation(freeStations.Head, decoded.Op, decoded.Qj, (if decoded.Imm = "" then decoded.Qk else 0), "", (if decoded.Imm = "" then "" else decoded.Imm))
                                 stations <- updateElement(newStation, stations)
                             | LoadStore -> 
                                 match FreeStations(loadStoreStations) with
                                 | [] -> 
                                     loadStoreStations <- UpdateStations(message, loadStoreStations)
                                 | freeLsHead::freeLsTail ->
-                                    let newLsStation = BookReservationStation(freeLsHead, decoded.Op, decoded.Qj, decoded.Qk, "", "")
+                                    let newLsStation = 
+                                        BookReservationStation(freeLsHead, decoded.Op, decoded.Qj, (if decoded.Imm = "" then decoded.Qk else 0), "", (if decoded.Imm = "" then "" else decoded.Imm))
                                     loadStoreStations <- updateElement(newLsStation, loadStoreStations)
-                        | decoded when decoded.Imm <> "" -> 
-                            match decoded.Type with
-                            | Integer -> 
-                                let newStation = BookReservationStation(freeStations.Head, decoded.Op, decoded.Qj, 0, "", decoded.Imm)
-                                stations <- updateElement(newStation, stations)
-                            | LoadStore -> 
-                                match FreeStations(loadStoreStations) with
-                                | [] -> 
-                                    loadStoreStations <- UpdateStations(message, loadStoreStations)
-                                | freeLsHead::freeLsTail ->
-                                    let newLsStation = BookReservationStation(freeLsHead, decoded.Op, decoded.Qj, 0, "", decoded.Imm)
-                                    loadStoreStations <- updateElement(newLsStation, loadStoreStations)
+                            | None -> raise(Exception("unknown instruction type"))
                         stations <- UpdateStations(message, stations)
                     match getRunnableStation(stations) with
                     | [] -> tail, { Source = 0; Value = ""}

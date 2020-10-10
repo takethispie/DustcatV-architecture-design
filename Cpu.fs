@@ -23,7 +23,7 @@ module Cpu =
             { Id = 40; State = Empty { Op = ""; Qj = 0; Qk = 0; Vj = ""; Vk = ""; }; Result = ""}
         ]
 
-        let rec iter (inst, message) = 
+        let rec executionUnitLoop (inst, message) = 
             match inst with
             | [] -> ()
             | head::tail -> 
@@ -45,7 +45,7 @@ module Cpu =
                                 match FreeStations(loadStoreStations) with
                                 | [] -> 
                                     loadStoreStations <- UpdateStations(message, loadStoreStations)
-                                | freeLsHead::freeLsTail ->
+                                | freeLsHead::_ ->
                                     let newLsStation = 
                                         BookReservationStation(freeLsHead, decoded.Op, decoded.Qj, (if decoded.Imm = "" then decoded.Qk else 0), "", (if decoded.Imm = "" then "" else decoded.Imm))
                                     loadStoreStations <- updateElement(newLsStation, loadStoreStations)
@@ -54,10 +54,10 @@ module Cpu =
                         loadStoreStations <- UpdateStations(message, loadStoreStations)
                     match getRunnableStation(stations) with
                     | [] -> tail, { Source = 0; Value = ""}
-                    | firstReady::others -> 
+                    | firstReady::_ -> 
                         let runStation, message = IntegerExecutionUnit(firstReady)
                         stations <- updateElement(runStation, stations)
                         (tail, message)
-                iter (next, newMessage)
-        iter (instructions, { Source = 0; Value = ""})
+                executionUnitLoop (next, newMessage)
+        executionUnitLoop (instructions, { Source = 0; Value = ""})
         0

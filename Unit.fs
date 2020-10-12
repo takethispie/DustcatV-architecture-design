@@ -3,14 +3,28 @@ namespace DustcatV
 open System;
 
 module FunctionalUnit =
-    let FunctionalUnit (op: string, Vj: string, Vk: string): string = 
-        match op.ToLower() with
-        | "add" -> ((Vj |> int) + (Vk |> int)).ToString()  
-        | "sub" -> ((Vj |> int) - (Vk |> int)).ToString()
-        | "mul" -> ((Vj |> int) * (Vk |> int)).ToString()
-        | "div" when Vk <> "0" -> ((Vj |> int) / (Vk |> int)).ToString()
-        | "div" when Vk = "0" -> raise(DivideByZeroException())
-        | _ -> ""
+
+    let IntegerFunctionalUnit (st: ReservationStationUnit)  =
+        let (newState, message) =
+            match st.State with
+            | Ready state -> 
+                let res = 
+                    match state.Op.ToLower() with
+                    | "add" -> ((state.Vj |> int) + (state.Vk |> int)).ToString()  
+                    | "sub" -> ((state.Vj |> int) - (state.Vk |> int)).ToString()
+                    | "mul" -> ((state.Vj |> int) * (state.Vk |> int)).ToString()
+                    | "div" when state.Vk <> "0" -> ((state.Vj |> int) / (state.Vk |> int)).ToString()
+                    | "div" when state.Vk = "0" -> raise(DivideByZeroException())
+                    | _ -> ""
+                ((Running state), { Source = st.Id; Value = res })
+            | _ -> raise(Exception("already running station"))
+        ({ Id = st.Id; State = newState; Result = message.Value}, message)
+        
+    let LoadStoreUnit (st: ReservationStationUnit) =
+        match st.State with
+        | Ready state -> 
+            0
+        | _ -> raise(Exception("already running station"))
 
 
 module ExecutionStageModule =
@@ -59,28 +73,6 @@ module ExecutionStageModule =
 
     let updateElement (itemToUpdate: ReservationStationUnit, items: ReservationStationUnit list) = 
         items |> List.map (fun v -> if v.Id = itemToUpdate.Id then itemToUpdate else v)
-
-    let IntegerExecutionUnit (st: ReservationStationUnit)  =
-        let (newState, message) =
-            match st.State with
-            | Ready state -> 
-                let res = 
-                    match state.Op.ToLower() with
-                    | "add" -> ((state.Vj |> int) + (state.Vk |> int)).ToString()  
-                    | "sub" -> ((state.Vj |> int) - (state.Vk |> int)).ToString()
-                    | "mul" -> ((state.Vj |> int) * (state.Vk |> int)).ToString()
-                    | "div" when state.Vk <> "0" -> ((state.Vj |> int) / (state.Vk |> int)).ToString()
-                    | "div" when state.Vk = "0" -> raise(DivideByZeroException())
-                    | _ -> ""
-                ((Running state), { Source = st.Id; Value = res })
-            | _ -> raise(Exception("already running station"))
-        ({ Id = st.Id; State = newState; Result = message.Value}, message)
-        
-    let LoadStoreUnit (st: ReservationStationUnit) =
-        match st.State with
-        | Ready state -> 
-            0
-        | _ -> raise(Exception("already running station"))
 
     let getRunnableStation stations =
         stations |> List.where(fun it -> 

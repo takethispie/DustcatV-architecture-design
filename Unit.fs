@@ -99,15 +99,15 @@ module DecodeStageUnitsModule =
         let source2 = int(binary.Substring(16, 4))
         let imm = binary.Substring(16, 16)
         match op.ToLower() with
-        | "add" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
-        | "addi" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
-        | "sub" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer;  }
-        | "subi" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
-        | "mul" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer;  }
-        | "muli" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
-        | "div" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer;  }
-        | "divi" -> { Op = op.ToLower(); Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer;  }
-        | _ -> { Op = ""; Qj = 0; Qk = 0; Qt = 0; Imm = ""; Type = None;  }
+        | "00000001" -> { Op = "add"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
+        | "00010001" -> { Op ="addi"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
+        | "00000010" -> { Op = "sub"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
+        | "00010010" -> { Op = "subi"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
+        | "00000011" -> { Op = "mul"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
+        | "00010011" -> { Op = "muli"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
+        | "00000100" -> { Op = "div"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
+        | "00010100" -> { Op = "divi"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
+        | _ -> { Op = ""; Qj = 0; Qk = 0; Qt = 0; Imm = ""; Type = None; }
 
 module RegisterRenaming =
     let ReorderBufer =

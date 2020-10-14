@@ -27,6 +27,7 @@ module Cpu =
         let mutable loadQueue: Object list = [] 
 
         let mutable storeQueue: Object list = []
+        
 
         let exStage (inst: Instruction, message: CommonDataBusMessage) =
             let freeStations = FreeStations(stations)
@@ -63,6 +64,7 @@ module Cpu =
                 stations <- updateElement(runStation, stations)
                 instProcessed, message
 
+
         let rec executionUnitLoop (inst: Instruction list, message) = 
             match inst with
             | [] -> ()
@@ -76,4 +78,4 @@ module Cpu =
 
         let decodedInstructions = (instructions |> List.map(InstructionDecode))
         executionUnitLoop (decodedInstructions, { Source = 0; Value = ""})
-        0
+        ram

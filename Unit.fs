@@ -5,6 +5,7 @@ open System.Linq;
 
 module FunctionalUnit =
 
+    // TODO: fix vj being empty
     let IntegerFunctionalUnit (st: ReservationStationUnit)  =
         let (newState, message) =
             match st.State with
@@ -53,7 +54,7 @@ module ExecutionStageModule =
     let BookReservationStation (station: ReservationStationUnit, inst: Instruction) =
         let newState = 
             match station.State with
-            | Empty _ -> Waiting { Op = inst.Op; Qj = inst.Qj; Qk = (if inst.Imm = "" then inst.Qk else 0); Vj = ""; Vk = (if inst.Imm = "" then "" else inst.Imm)}
+            | Empty _ -> Waiting { Op = inst.Op; Qj = inst.Qj; Qk = (if inst.Imm = "" then inst.Qk else 0); Vj = (if inst.Qj = 0 then "0" else ""); Vk = (if inst.Imm = "" then "" else inst.Imm)}
             | _ -> raise(Exception("reservation station state in unknown / wrong state"))
         { Id = station.Id; State = newState;  Result = ""; Rt = inst.Qt }
 
@@ -91,7 +92,13 @@ module ExecutionStageModule =
             | Ready(_) -> true
             | _ -> false
         )
-    
+
+    let getInstructionsToCommit (stations: ReservationStations) =
+        stations |> List.where(fun st -> 
+            match st.State with
+            | Running state when state.Qj = 0 && state.Qk = 0 && st.Rt <> 0 -> true
+            | _ -> false
+        )
 
 module DecodeStageUnitsModule =
     let rec strHexToBinary (i: string)=
@@ -114,7 +121,6 @@ module DecodeStageUnitsModule =
             | 'e' -> "1110"
             | 'f' -> "1111"
             | _ -> ""
-
         Seq.map toBinary (i.ToLower()) |> String.Concat
 
             
@@ -135,9 +141,3 @@ module DecodeStageUnitsModule =
         | "00000100" -> { Op = "div"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
         | "00010100" -> { Op = "divi"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
         | _ -> { Op = ""; Qj = 0; Qk = 0; Qt = 0; Imm = ""; Type = None; }
-
-module RegisterRenaming =
-    let ReorderBufer =
-        0
-
-    let mutable InstructionQueue: Instruction list = []

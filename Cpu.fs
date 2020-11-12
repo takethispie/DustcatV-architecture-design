@@ -24,18 +24,33 @@ module Cpu =
         
 
         let exStage (inst: Instruction, bus: CommonDataBus) =
-            let newMessage =
+        // TODO check this is working as intended 
+            match getInstructionsToCommit(stations) with
+            | head::_ -> 
+                match head.State with 
+                | Running state -> 
+                    registers <- registers |> List.mapi (fun i v -> if i = head.Rt then { Value = head.Result; Dirty = false } else v)
+                    stations <- updateElement({ Id = head.Id; State = Empty { Qj = 0; Qk = 0; Op = ""; Vk = ""; Vj = ""; }; Result = ""; Rt = 0}, stations)
+
+            match getInstructionsToCommit(loadStoreStations) with
+            | head::_ -> 
+                match head.State with 
+                | Running state -> 
+                    registers <- registers |> List.mapi (fun i v -> if i = head.Rt then { Value = head.Result; Dirty = false } else v)
+                    loadStoreStations <- updateElement({ Id = head.Id; State = Empty { Qj = 0; Qk = 0; Op = ""; Vk = ""; Vj = ""; }; Result = ""; Rt = 0}, loadStoreStations)
+
+            let newLoadStoreMessage =
                 match getRunnableStation(loadStoreStations) with
                 | [] -> { Source = 0; Value = ""}
                 | firstReady::_ ->
                     let runStation, newMessage = LoadStoreFunctionnalUnit(firstReady)
-                    loadStoreStations <- updateElement(runStation, stations)
+                    loadStoreStations <- updateElement(runStation, loadStoreStations)
                     newMessage
             let newBus =
                 match getRunnableStation(stations) with
-                | [] -> { Int = newMessage; LoadStore = { Source = 0; Value = "" }}
+                | [] -> { Int = { Source = 0; Value = "" }; LoadStore = newLoadStoreMessage}
                 | firstReady::_ -> 
-                    let runStation, newLoadStoreMessage = IntegerFunctionalUnit(firstReady)
+                    let runStation, newMessage = IntegerFunctionalUnit(firstReady)
                     stations <- updateElement(runStation, stations)
                     { Int = newMessage; LoadStore = newLoadStoreMessage }
 
@@ -44,28 +59,23 @@ module Cpu =
                 if freeStations.IsEmpty
                 then 
                     stations <- UpdateStations(bus.Int, stations)
-                    loadStoreStations <- UpdateStations(bus.Int, loadStoreStations)
+                    loadStoreStations <- UpdateStations(bus.LoadStore, loadStoreStations)
                     false
                 else 
-                    match inst with
-                    | decoded -> 
-                        match decoded.Type with
-                        | Integer -> 
-                            let newStation = 
-                                BookReservationStation(freeStations.Head, decoded )
-                            stations <- updateElement(newStation, stations)
-                        | LoadStore -> 
-                            match FreeStations(loadStoreStations) with
-                            | [] -> 
-                                loadStoreStations <- UpdateStations(bus.LoadStore, loadStoreStations)
-                            | freeLsHead::_ ->
-                                let newLsStation = 
-                                    BookReservationStation(freeLsHead, decoded)
-                                loadStoreStations <- updateElement(newLsStation, loadStoreStations)
-                        | None when decoded.Op = "none" -> 
-                            stations <- UpdateStations(bus.Int, stations)
-                            loadStoreStations <- UpdateStations(bus.Int, loadStoreStations)
-                        | None -> raise(Exception("unknown instruction type"))
+                    match inst.Type with
+                    | Integer -> 
+                        let newStation = BookReservationStation(freeStations.Head, inst )
+                        stations <- updateElement(newStation, stations)
+                    | LoadStore -> 
+                        match FreeStations(loadStoreStations) with
+                        | [] -> loadStoreStations <- UpdateStations(bus.LoadStore, loadStoreStations)
+                        | freeLsHead::_ ->
+                            let newLsStation = BookReservationStation(freeLsHead, inst)
+                            loadStoreStations <- updateElement(newLsStation, loadStoreStations)
+                    | None when inst.Op = "none" -> 
+                        stations <- UpdateStations(bus.Int, stations)
+                        loadStoreStations <- UpdateStations(bus.Int, loadStoreStations)
+                    | None -> raise(Exception("unknown instruction type"))
                     stations <- UpdateStations(bus.Int, stations)
                     loadStoreStations <- UpdateStations(bus.LoadStore, loadStoreStations)
                     true
@@ -85,7 +95,7 @@ module Cpu =
                 | true -> [], bus 
                 | false -> 
                      match exStage({ Op = "none"; Qj = 0; Qk = 0; Qt = 0; Imm = ""; Type = None; }, bus) with
-                     | (_, m) -> [], m
+                     | (_, newBus) ->  executionUnitLoop([], newBus)
             | head::tail -> 
                 let remaining, newbus =
                     match exStage(head, bus) with

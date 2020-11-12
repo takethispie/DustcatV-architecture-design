@@ -77,7 +77,7 @@ module ExecutionStageModule =
                 | Running state -> Running state
                 | _ -> raise(Exception("unknown state"))
             let newState = updateState(station)
-            { Id = station.Id; State = newState; Result = ""; Rt = station.Rt }
+            { Id = station.Id; State = newState; Result = station.Result; Rt = station.Rt }
         )
 
 

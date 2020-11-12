@@ -24,20 +24,27 @@ module Cpu =
         
 
         let exStage (inst: Instruction, bus: CommonDataBus) =
-        // TODO check this is working as intended 
-            match getInstructionsToCommit(stations) with
-            | head::_ -> 
-                match head.State with 
-                | Running state -> 
-                    registers <- registers |> List.mapi (fun i v -> if i = head.Rt then { Value = head.Result; Dirty = false } else v)
-                    stations <- updateElement({ Id = head.Id; State = Empty { Qj = 0; Qk = 0; Op = ""; Vk = ""; Vj = ""; }; Result = ""; Rt = 0}, stations)
+            let commitInst =
+                match getInstructionsToCommit(stations) with
+                | head::_ -> 
+                    match head.State with 
+                    | Running state -> 
+                        registers <- registers |> List.mapi (fun i v -> if i = head.Rt then { Value = head.Result; Dirty = false } else v)
+                        stations <- updateElement({ Id = head.Id; State = Empty { Qj = 0; Qk = 0; Op = ""; Vk = ""; Vj = ""; }; Result = ""; Rt = 0}, stations)
+                        true
+                    | _ -> false
+                | [] -> false
 
-            match getInstructionsToCommit(loadStoreStations) with
-            | head::_ -> 
-                match head.State with 
-                | Running state -> 
-                    registers <- registers |> List.mapi (fun i v -> if i = head.Rt then { Value = head.Result; Dirty = false } else v)
-                    loadStoreStations <- updateElement({ Id = head.Id; State = Empty { Qj = 0; Qk = 0; Op = ""; Vk = ""; Vj = ""; }; Result = ""; Rt = 0}, loadStoreStations)
+            let commitLoadStoreInst =
+                match getInstructionsToCommit(loadStoreStations) with
+                | head::_ -> 
+                    match head.State with 
+                    | Running state -> 
+                        registers <- registers |> List.mapi (fun i v -> if i = head.Rt then { Value = head.Result; Dirty = false } else v)
+                        loadStoreStations <- updateElement({ Id = head.Id; State = Empty { Qj = 0; Qk = 0; Op = ""; Vk = ""; Vj = ""; }; Result = ""; Rt = 0}, loadStoreStations)
+                        true
+                    | _ -> false
+                | [] -> false
 
             let newLoadStoreMessage =
                 match getRunnableStation(loadStoreStations) with

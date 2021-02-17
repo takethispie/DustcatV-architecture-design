@@ -5,44 +5,18 @@ open System;
 module FunctionalUnit =
 
     let IntegerFunctionalUnit (st: ReservationStationUnit)  =
-        let (newState, message) =
-            match st.State with
-            | Ready state -> 
-                let res = 
-                    match state.Op.ToLower() with
-                    | "add" -> ((state.Vj |> int) + (state.Vk |> int)).ToString() 
-                    | "addi" -> ((state.Vj |> int) + (state.Vk |> int)).ToString() 
-                    | "sub" -> ((state.Vj |> int) - (state.Vk |> int)).ToString()
-                    | "subi" -> ((state.Vj |> int) - (state.Vk |> int)).ToString()
-                    | "mul" -> ((state.Vj |> int) * (state.Vk |> int)).ToString()
-                    | "muli" -> ((state.Vj |> int) * (state.Vk |> int)).ToString()
-                    | "div" when state.Vk <> "0" -> ((state.Vj |> int) / (state.Vk |> int)).ToString()
-                    | "div" when state.Vk = "0" -> raise(DivideByZeroException())
-                    | "divi" when state.Vk <> "0" -> ((state.Vj |> int) / (state.Vk |> int)).ToString()
-                    | "divi" when state.Vk = "0" -> raise(DivideByZeroException())
-                    | _ -> ""
-                ((Running state), { Source = st.Id; Value = res })
-            | _ -> raise(Exception("already running station"))
-        ({ Id = st.Id; State = newState; Result = message.Value; Rt = st.Rt}, message)
+        ignore
 
         
     let LoadStoreFunctionnalUnit (st: ReservationStationUnit) =
-        let (newState, message) =
-            match st.State with
-            | Ready state -> 
-                match state.Op with
-                | "lw" -> 
-                    ((Running state),{ Source = 0; Value = state.Vk })
-                | _ -> raise(Exception("unknown operation"))
-            | _ -> raise(Exception("already running station"))
-        ({ Id = st.Id; State = newState; Result = message.Value; Rt = st.Rt}, message)
+        ignore
 
 
 module ExecutionStageModule =
 
     let HasNoInstruction unit =
         match unit.State with
-        | Empty(_) -> true
+        | Empty -> true
         | _ -> false
 
     let FreeStations stations =
@@ -52,27 +26,25 @@ module ExecutionStageModule =
     let BookReservationStation (station: ReservationStationUnit, inst: Instruction) =
         let newState = 
             match station.State with
-            | Empty _ -> Waiting { Op = inst.Op; Qj = inst.Qj; Qk = (if inst.Imm = "" then inst.Qk else 0); Vj = (if inst.Qj = 0 then "0" else ""); Vk = (if inst.Imm = "" then "" else inst.Imm)}
+            | Empty -> Waiting { Op = inst.Op; Qj = inst.Qj; Qk = (if inst.Imm = "" then inst.Qk else 0); Vj = (if inst.Qj = 0 then "0" else ""); Vk = (if inst.Imm = "" then "" else inst.Imm)}
             | _ -> raise(Exception("reservation station state in unknown / wrong state"))
         { Id = station.Id; State = newState;  Result = ""; Rt = inst.Qt }
 
 
-    let ResolveSources (state: ReservationState, message: CommonDataBusMessage)  =
-        let (qj, vj) = if state.Qj = message.Source then (0, message.Value) else (state.Qj, "0")
-        let (qk, vk) = if state.Qk = message.Source then (0, message.Value) else (state.Qk, "0")
-        { Op = state.Op; Qj = qj; Qk = qk; Vj = vj; Vk = vk }
+    let ResolveSources (unit: ReservationStationUnit, message: CommonDataBusMessage)  =
+        let (qj, vj) = if unit.Qj = message.Source then (0, message.Value) else (unit.Qj, "0")
+        let (qk, vk) = if unit.Qk = message.Source then (0, message.Value) else (unit.Qk, "0")
+        { Op = unit.Op; Qj = qj; Qk = qk; Vj = vj; Vk = vk }
 
 
     let UpdateStations (cdbM: CommonDataBusMessage, stations: ReservationStations) =
         stations |> List.map(fun station -> 
             let rec updateState (item) = 
                 match item.State with
-                | Empty state -> Empty state
-                | Waiting state when state.Qj <> 0 && state.Qk <> 0 -> 
-                    updateState({ Id = station.Id; State = Waiting (ResolveSources(state, cdbM)); Result = ""; Rt = station.Rt})
-                | Waiting state when state.Qj = 0 && state.Qk = 0 -> Ready state
-                | Ready state -> Ready state
-                | Running state -> Running state
+                | Empty -> Empty
+                | Waiting when item.Qj <> 0 && item.Qk <> 0 -> 
+                    updateState(ResolveSources(item, cdbM))
+                | Waiting when item.Qj = 0 && item.Qk = 0 -> Ready
                 | _ -> raise(Exception("unknown state"))
             let newState = updateState(station)
             { Id = station.Id; State = newState; Result = station.Result; Rt = station.Rt }
@@ -87,14 +59,14 @@ module ExecutionStageModule =
     let getRunnableStation stations =
         stations |> List.where(fun it -> 
             match it.State with
-            | Ready(_) -> true
+            | Ready -> true
             | _ -> false
         )
 
     let getInstructionsToCommit (stations: ReservationStations) =
         stations |> List.where(fun st -> 
             match st.State with
-            | Running state when state.Qj = 0 && state.Qk = 0 && st.Rt <> 0 -> true
+            | Running when st.Qj = 0 && st.Qk = 0 && st.Rt <> 0 -> true
             | _ -> false
         )
 

@@ -54,6 +54,7 @@ module Cpu =
                     let runStation, newMessage = LoadStoreFunctionnalUnit(firstReady)
                     loadStoreStations <- updateElement(runStation, loadStoreStations)
                     newMessage
+
             let newBus =
                 match getRunnableStation(stations) with
                 | [] -> { Int = { Source = 0; Value = "" }; LoadStore = newLoadStoreMessage}
@@ -63,6 +64,7 @@ module Cpu =
                     { Int = newMessage; LoadStore = newLoadStoreMessage }
 
             let freeStations = FreeStations(stations)
+            
             let instProcessed =
                 if freeStations.IsEmpty
                 then 

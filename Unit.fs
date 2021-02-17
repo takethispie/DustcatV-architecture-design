@@ -1,11 +1,9 @@
 namespace DustcatV
 
 open System;
-open System.Linq;
 
 module FunctionalUnit =
 
-    // TODO: fix vj being empty
     let IntegerFunctionalUnit (st: ReservationStationUnit)  =
         let (newState, message) =
             match st.State with

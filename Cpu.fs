@@ -18,7 +18,7 @@ module Cpu =
 
         let mutable registers: Register list = [for i in 1 .. 31 -> { Value = ""; Dirty = false }]
 
-        let mutable loadBuffer: LoadInstruction list = [] 
+        let mutable loadBuffer: LoadInstruction list = []
 
         let mutable storeBuffer: StoreInstruction list = []
         
@@ -36,6 +36,7 @@ module Cpu =
                 | [] -> false
 
             let commitLoadStoreInst =
+            // TODO handle interaction with load / store buffer 
                 match getInstructionsToCommit(loadStoreStations) with
                 | head::_ -> 
                     match head.State with 
@@ -112,5 +113,5 @@ module Cpu =
 
 
         let decodedInstructions = (instructions |> List.map(InstructionDecode))
-        executionUnitLoop (decodedInstructions, { Int = { Source = 0; Value = ""}; LoadStore = { Source = 0; Value = ""}})
+        executionUnitLoop (decodedInstructions, { Int = { Source = 0; Value = ""}; LoadStore = { Source = 0; Value = ""}}) |> ignore
         ram

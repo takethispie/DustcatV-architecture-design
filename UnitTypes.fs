@@ -9,29 +9,37 @@ module UnitTypes =
 
     type Register = { Value: string; Dirty: bool}
 
-    type StationState =
-        | Empty
-        | Waiting
-        | Ready
-        | Running
-
-    type ReservationStationUnit = { Id: int; Op: string; Qj: int; Qk: int; Vj: string; Vk: string; Result: string; Rt: int; State: StationState }
-    type ReservationStations = ReservationStationUnit list
-
     type MathOperation = 
     | Add
     | Substract
     | Divide
     | Multiply
 
-    type Metadata = { Source1Valid: int; Source2Valid: int; Destination: int }
-
-    type InstructionType =
-    | Integer of Metadata * Left: int * MathOperation * Right: int
-    | Load of Metadata * Destination: int * Offset: int * Source: int 
-    | Store of Metadata * Destination: int * Offset: int * source: int 
-    | Read of Metadata * Source: int * Offset: int * Dest: int
+    type Operation = 
+    | Arithmetic of MathOperation
+    | ImmediateArithmetic of MathOperation
+    | Set
+    | Load
+    | Store 
+    | Read
     | Write
-    | None
+    | NopeOp
 
-    type Instruction = { Op: string; Qj: int; Qk: int; Qt: int; Imm: string; Type: InstructionType}
+    type Instruction =
+    | Integer of Op: Operation * Dest: int * Left: int * Right: int
+    | ImmediateInteger of  Op: Operation * Dest: int * Left: int * Immediate: string
+    | Set of Op: Operation * Dest: int * Immediate: string
+    | Load of Op: Operation * Dest: int * Offset: int * Source: int
+    | Store of Op: Operation * Dest: int * Offset: int * Source: int
+    | Read of Op: Operation * Dest: int * source1: int * Source2: int
+    | Write of Op: Operation * Source: int * Dest1: int * Dest2: int
+    | Nope of Op: Operation
+
+    type ReservationStationUnit =
+        | Empty of Id: int
+        | Waiting of Id: int * Op: Operation * Qj: int * Qk: int * Vj: string * Vk: string * dest: int 
+        | Ready of Id: int * Op: Operation * Vj: string * Vk: string * Rt: int
+        | Running of Id: int * Op: Operation * Vj: string * Vk: string * Rt: int
+        | Done of Id: int * Op: Operation * Vj: string * Vk: string * Rt: int * result: string
+
+    type ReservationStations = ReservationStationUnit list

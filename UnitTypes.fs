@@ -29,10 +29,8 @@ module UnitTypes =
     | Integer of Op: Operation * Dest: int * Left: int * Right: int
     | ImmediateInteger of  Op: Operation * Dest: int * Left: int * Immediate: string
     | Set of Op: Operation * Dest: int * Immediate: string
-    | Load of Op: Operation * Dest: int * Offset: int * Source: int
-    | Store of Op: Operation * Dest: int * Offset: int * Source: int
-    | Read of Op: Operation * Dest: int * source1: int * Source2: int
-    | Write of Op: Operation * Source: int * Dest1: int * Dest2: int
+    | Load of Op: Operation * Dest: int * Source: int * Offset: int
+    | Store of Op: Operation * Dest: int * Source: int * Offset: int
     | Nope of Op: Operation
 
     type ReservationStationUnit =

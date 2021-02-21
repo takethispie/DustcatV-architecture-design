@@ -2,16 +2,6 @@ namespace DustcatV
 
 open System;
 
-module FunctionalUnit =
-
-    let IntegerFunctionalUnit (st: ReservationStationUnit)  =
-        ignore
-
-        
-    let LoadStoreFunctionnalUnit (st: ReservationStationUnit) =
-        ignore
-
-
 module ExecutionStageModule =
 
     let HasNoInstruction (unit: ReservationStationUnit) =
@@ -25,7 +15,11 @@ module ExecutionStageModule =
     let TransformInstructionToStationData (inst: Instruction, id: int) =
         match inst with 
         | Integer(op, dest, left, right) -> Waiting(id, op, left, right, "0", "0", dest)
-        //TODO handle other instruction type 
+        | ImmediateInteger(op, dest, left, imm) -> Waiting(id, op, left, 0, "0", imm, dest)
+        | Set(op, dest, imm) -> Waiting(id, op, 0, 0, "0", imm, dest)
+        | Load(op, dest, source, offset) -> Waiting(id, op, source, offset, "0", "0", dest) 
+        | Store(op, dest, source, offset) ->  Waiting(id, op, source, offset, "0", "0", dest)
+        | _ -> raise(Exception("not transformable instruction"))
 
     let BookReservationStation (station: ReservationStationUnit, inst: Instruction) =
         match station with
@@ -51,6 +45,9 @@ module ExecutionStageModule =
                 | Empty id -> Empty id
                 | Waiting(id, op, qj, qk, vj, vk, dest) when qj <> 0 || qk <> 0 -> updateState(ResolveSources(item, cdbM))
                 | Waiting(id, op, qj, qk, vj, vk, dest) when qj = 0 && qk = 0 -> Ready(id, op, vj, vk, dest)
+                | Ready(id, op, vj, vk, dest) -> Ready(id, op, vj, vk, dest)
+                | Running(id, op, vj, vk, dest) -> Running(id, op, vj, vk, dest) 
+                | Done(id, op, vj, vk, dest, res) -> Empty id
                 | _ -> raise(Exception("unknown state"))
             updateState(station)
         )
@@ -98,7 +95,7 @@ module DecodeStageUnitsModule =
         Seq.map toBinary (i.ToLower()) |> String.Concat
 
             
-    let InstructionDecode (inst: string) =
+    let InstructionLowDecode (inst: string) =
         let binary = inst |> strHexToBinary 
         let op = binary.Substring(0, 8)
         let target = int(binary.Substring(8, 4))

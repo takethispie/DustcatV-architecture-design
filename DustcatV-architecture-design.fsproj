@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DustcatV</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="UnitTypes.fs" />
+    <Compile Include="Unit.fs" />
+    <Compile Include="Cpu.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>

@@ -1,104 +1,7 @@
 namespace DustcatV
-
 open System;
 
-module FunctionalUnit =
-
-    let IntegerFunctionalUnit (st: ReservationStationUnit)  =
-        let (newState, message) =
-            match st.State with
-            | Ready state -> 
-                let res = 
-                    match state.Op.ToLower() with
-                    | "add" -> ((state.Vj |> int) + (state.Vk |> int)).ToString() 
-                    | "addi" -> ((state.Vj |> int) + (state.Vk |> int)).ToString() 
-                    | "sub" -> ((state.Vj |> int) - (state.Vk |> int)).ToString()
-                    | "subi" -> ((state.Vj |> int) - (state.Vk |> int)).ToString()
-                    | "mul" -> ((state.Vj |> int) * (state.Vk |> int)).ToString()
-                    | "muli" -> ((state.Vj |> int) * (state.Vk |> int)).ToString()
-                    | "div" when state.Vk <> "0" -> ((state.Vj |> int) / (state.Vk |> int)).ToString()
-                    | "div" when state.Vk = "0" -> raise(DivideByZeroException())
-                    | "divi" when state.Vk <> "0" -> ((state.Vj |> int) / (state.Vk |> int)).ToString()
-                    | "divi" when state.Vk = "0" -> raise(DivideByZeroException())
-                    | _ -> ""
-                ((Running state), { Source = st.Id; Value = res })
-            | _ -> raise(Exception("already running station"))
-        ({ Id = st.Id; State = newState; Result = message.Value; Rt = st.Rt}, message)
-
-        
-    let LoadStoreFunctionnalUnit (st: ReservationStationUnit) =
-        let (newState, message) =
-            match st.State with
-            | Ready state -> 
-                match state.Op with
-                | "lw" -> 
-                    ((Running state),{ Source = 0; Value = state.Vk })
-                | _ -> raise(Exception("unknown operation"))
-            | _ -> raise(Exception("already running station"))
-        ({ Id = st.Id; State = newState; Result = message.Value; Rt = st.Rt}, message)
-
-
-module ExecutionStageModule =
-
-    let HasNoInstruction unit =
-        match unit.State with
-        | Empty(_) -> true
-        | _ -> false
-
-    let FreeStations stations =
-        stations |> List.where(HasNoInstruction)
-
-
-    let BookReservationStation (station: ReservationStationUnit, inst: Instruction) =
-        let newState = 
-            match station.State with
-            | Empty _ -> Waiting { Op = inst.Op; Qj = inst.Qj; Qk = (if inst.Imm = "" then inst.Qk else 0); Vj = (if inst.Qj = 0 then "0" else ""); Vk = (if inst.Imm = "" then "" else inst.Imm)}
-            | _ -> raise(Exception("reservation station state in unknown / wrong state"))
-        { Id = station.Id; State = newState;  Result = ""; Rt = inst.Qt }
-
-
-    let ResolveSources (state: ReservationState, message: CommonDataBusMessage)  =
-        let (qj, vj) = if state.Qj = message.Source then (0, message.Value) else (state.Qj, "0")
-        let (qk, vk) = if state.Qk = message.Source then (0, message.Value) else (state.Qk, "0")
-        { Op = state.Op; Qj = qj; Qk = qk; Vj = vj; Vk = vk }
-
-
-    let UpdateStations (cdbM: CommonDataBusMessage, stations: ReservationStations) =
-        stations |> List.map(fun station -> 
-            let rec updateState (item) = 
-                match item.State with
-                | Empty state -> Empty state
-                | Waiting state when state.Qj <> 0 && state.Qk <> 0 -> 
-                    updateState({ Id = station.Id; State = Waiting (ResolveSources(state, cdbM)); Result = ""; Rt = station.Rt})
-                | Waiting state when state.Qj = 0 && state.Qk = 0 -> Ready state
-                | Ready state -> Ready state
-                | Running state -> Running state
-                | _ -> raise(Exception("unknown state"))
-            let newState = updateState(station)
-            { Id = station.Id; State = newState; Result = station.Result; Rt = station.Rt }
-        )
-
-
-
-    let updateElement (itemToUpdate: ReservationStationUnit, items: ReservationStationUnit list) = 
-        items |> List.map (fun v -> if v.Id = itemToUpdate.Id then itemToUpdate else v)
-        
-
-    let getRunnableStation stations =
-        stations |> List.where(fun it -> 
-            match it.State with
-            | Ready(_) -> true
-            | _ -> false
-        )
-
-    let getInstructionsToCommit (stations: ReservationStations) =
-        stations |> List.where(fun st -> 
-            match st.State with
-            | Running state when state.Qj = 0 && state.Qk = 0 && st.Rt <> 0 -> true
-            | _ -> false
-        )
-
-module DecodeStageUnitsModule =
+module DecodeStageModule =
     let rec strHexToBinary (i: string)=
         let toBinary(c: char) =
             match c with
@@ -122,7 +25,7 @@ module DecodeStageUnitsModule =
         Seq.map toBinary (i.ToLower()) |> String.Concat
 
             
-    let InstructionDecode (inst: string) =
+    let InstructionLowDecode (inst: string) =
         let binary = inst |> strHexToBinary 
         let op = binary.Substring(0, 8)
         let target = int(binary.Substring(8, 4))
@@ -130,12 +33,142 @@ module DecodeStageUnitsModule =
         let source2 = int(binary.Substring(16, 4))
         let imm = binary.Substring(16, 16)
         match op.ToLower() with
-        | "00000001" -> { Op = "add"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
-        | "00010001" -> { Op ="addi"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
-        | "00000010" -> { Op = "sub"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
-        | "00010010" -> { Op = "subi"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
-        | "00000011" -> { Op = "mul"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
-        | "00010011" -> { Op = "muli"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
-        | "00000100" -> { Op = "div"; Qj = source1; Qk = source2; Qt = target; Imm = ""; Type = Integer; }
-        | "00010100" -> { Op = "divi"; Qj = source1; Qk = source2; Qt = target; Imm = imm; Type = Integer; }
-        | _ -> { Op = ""; Qj = 0; Qk = 0; Qt = 0; Imm = ""; Type = None; }
+        | "00000001" -> Integer(Add, target, source1, source2)
+        | "00010001" -> ImmediateInteger(Add, target, source1, imm)
+        | "00000010" -> Integer(Substract, target, source1, source2)
+        | "00010010" -> ImmediateInteger(Substract, target, source1, imm)
+        | "00000011" -> Integer(Multiply, target, source1, source2)
+        | "00010011" -> ImmediateInteger(Multiply, target, source1, imm)
+        | "00000100" -> Integer(Divide, target, source1, source2)
+        | "00010100" -> ImmediateInteger(Divide, target, source1, imm)
+        | _ -> Nope NopeOp
+
+
+module DispatchStageModule =
+    let GetStationId (item: ReservationStationUnit) =
+        match item with 
+        | Empty id -> id
+        | Waiting (id,_,_,_,_,_,_) -> id
+        | Ready(id,_,_,_,_) -> id
+        | Running(id,_,_,_,_) -> id
+        | Done(id,_,_) -> id
+        
+
+    let ReplaceStation (itemToUpdate: ReservationStationUnit, items: ReservationStations) = 
+        items |> List.map (fun v -> if GetStationId(v) = GetStationId(itemToUpdate) then itemToUpdate else v)
+        
+
+    let HasNoInstruction (unit: ReservationStationUnit) =
+        match unit with
+        | Empty _ -> true
+        | _ -> false
+
+
+    let FreeStations stations =
+        stations |> List.where(HasNoInstruction) 
+
+
+    let TransformInstructionToStationData (inst: Instruction, id: int) =
+        match inst with 
+        | Integer(op, dest, left, right) -> Waiting(id, op, left, right, "0", "0", dest)
+        | ImmediateInteger(op, dest, left, imm) -> Waiting(id, op, left, 0, "0", imm, dest)
+        | SetRegister(op, dest, imm) -> Waiting(id, op, 0, 0, "0", imm, dest)
+        | Memory(op, dest, source, offset) ->  Waiting(id, op, source, offset, "0", "0", dest)
+        | _ -> raise(Exception("not transformable instruction"))
+
+
+    let BookReservationStation (stations: ReservationStations, inst: Instruction) =
+        match FreeStations(stations) with
+        | head::_ ->  
+            match head with 
+            | Empty id -> ReplaceStation(TransformInstructionToStationData(inst, id), stations), true
+            | _ -> stations, false
+        | [] -> stations, false
+
+
+    let getReadyStations (stations: ReservationStations ) =
+        stations |> List.where(fun it -> 
+            match it with
+            | Ready _ -> true
+            | _ -> false
+        ) |> List.sortByDescending(fun (s: ReservationStationUnit )-> 
+            match s with
+            | Empty id -> id
+            | Waiting (id, _, _, _, _, _, _) -> id
+            | Ready (id, _, _, _, _) -> id
+            | Running (id, _, _, _, _) -> id
+            | Done (id, _, _) -> id
+        )
+
+
+module ExecutionStageModule =
+    let ResolveSources (rUnit: ReservationStationUnit, message: CommonDataBusMessage)  =
+        match rUnit with 
+        | Waiting(id, op, qj, qk, vj, vk, dest) ->
+            let (qj, vj) = if qj = message.Source then (0, message.Value) else (qj, "0")
+            let (qk, vk) = if qk = message.Source then (0, message.Value) else (qk, "0")
+            match (qj,qk) with
+            | 0,0 -> Ready(id, op, vj, vk, dest) 
+            | _ -> rUnit
+        | _ -> rUnit
+
+
+    let ArithmeticAndLogicUnit (op: Operation, left, right) =
+        let parsedLeft = left |> int
+        let parsedRight = right |> int
+        match op with
+        | Add -> parsedLeft + parsedRight
+        | Substract -> parsedLeft - parsedRight
+        | Divide when parsedRight <> 0 -> parsedLeft / parsedRight
+        | Divide when parsedRight = 0 -> raise(DivideByZeroException())
+        | Multiply -> parsedLeft * parsedRight
+        | _ -> raise(Exception("Unit mismatch: instruction cannot be processed by this"))
+
+    let runFunctionalUnit (rUnit: ReservationStationUnit, integerUnit, storeUnit) =
+        match rUnit with
+        | Running(id, op, vj, vk, dest) -> 
+            match op with
+            | Set -> storeUnit(op, vj, vk, dest)
+            | Load -> storeUnit(op, vj, vk, dest)
+            | Store -> storeUnit(op, vj, vk, dest)
+            | Read -> storeUnit(op, vj, vk, dest)
+            | Write -> storeUnit(op, vj, vk, dest)
+            | Add -> integerUnit(op, vj, vk, dest)
+            | Substract -> integerUnit(op, vj, vk, dest)
+            | Divide -> integerUnit(op, vj, vk, dest)
+            | Multiply -> integerUnit(op, vj, vk, dest)
+            | _ -> raise(Exception("unknown runnable instruction"))
+        | _ -> raise(Exception("station not in correct state"))
+
+
+    let RunIntegerUnit (op: Operation, left: string, right: string, dest: int) =
+        let result = ArithmeticAndLogicUnit(op, left |> int, right |> int)
+        { Source = dest; Value = (result |> string); Valid = false }
+
+
+    let RunLoadStoreUnit (op: Operation, first: string, second: string, dest: int) =
+        
+        { Source = 0; Value = ""; Valid = false }
+
+
+    let UpdateStations (cdbM: CommonDataBusMessage, stations: ReservationStations) =
+        stations |> List.map(fun station -> 
+            let rec updateState (item) = 
+                match item with
+                | Empty id -> Empty id
+                | Waiting(id, op, qj, qk, vj, vk, dest) when qj <> 0 || qk <> 0 -> updateState(ResolveSources(item, cdbM))
+                | Waiting(id, op, qj, qk, vj, vk, dest) when qj = 0 && qk = 0 -> Ready(id, op, vj, vk, dest)
+                | Ready(id, op, vj, vk, dest) -> Ready(id, op, vj, vk, dest)
+                | Running(id, op, vj, vk, dest) when cdbM.Source = dest && cdbM.Valid = true -> Empty id
+                | Running(id, op, vj, vk, dest) -> Running(id, op, vj, vk, dest) 
+                | Done(id, _, _) -> Empty id
+                | _ -> raise(Exception("unknown state"))
+            updateState(station)
+        )
+
+    let setRunning(rUnit: ReservationStationUnit, items: ReservationStations, replace) =
+        match rUnit with
+        | Ready(id, op, vj, vk, dest) -> replace(Running(id, op, vj, vk, dest), items) 
+        | _ -> raise(Exception("unknown state"))
+
+    

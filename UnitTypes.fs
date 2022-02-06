@@ -3,7 +3,7 @@ namespace DustcatV
 [<AutoOpen>]
 module UnitTypes =
 
-    type CommonDataBusMessage = { Source: int; Value: string; } 
+    type CommonDataBusMessage = { Source: int; Value: string; Valid: bool } 
     
     type Register = { Id: int; Value: string; Dirty: bool}
     

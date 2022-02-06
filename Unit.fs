@@ -128,27 +128,27 @@ module ExecutionStageModule =
         match rUnit with
         | Running(id, op, vj, vk, dest) -> 
             match op with
-            | Set -> storeUnit(rUnit)
-            | Load -> storeUnit(rUnit)
-            | Store -> storeUnit(rUnit)
-            | Read -> storeUnit(rUnit)
-            | Write -> storeUnit(rUnit)
-            | Add -> integerUnit(rUnit)
-            | Substract -> integerUnit(rUnit)
-            | Divide -> integerUnit(rUnit)
-            | Multiply -> integerUnit(rUnit)
+            | Set -> storeUnit(op, vj, vk, dest)
+            | Load -> storeUnit(op, vj, vk, dest)
+            | Store -> storeUnit(op, vj, vk, dest)
+            | Read -> storeUnit(op, vj, vk, dest)
+            | Write -> storeUnit(op, vj, vk, dest)
+            | Add -> integerUnit(op, vj, vk, dest)
+            | Substract -> integerUnit(op, vj, vk, dest)
+            | Divide -> integerUnit(op, vj, vk, dest)
+            | Multiply -> integerUnit(op, vj, vk, dest)
             | _ -> raise(Exception("unknown runnable instruction"))
         | _ -> raise(Exception("station not in correct state"))
 
 
-    let RunIntegerUnit (rUnit: ReservationStationUnit) =
-        
-        { Source = 0; Value = ""}
+    let RunIntegerUnit (op: Operation, left: string, right: string, dest: int) =
+        let result = ArithmeticAndLogicUnit(op, left |> int, right |> int)
+        { Source = dest; Value = (result |> string); Valid = false }
 
 
-    let RunLoadStoreUnit (rUnit: ReservationStationUnit) =
+    let RunLoadStoreUnit (op: Operation, first: string, second: string, dest: int) =
         
-        { Source = 0; Value = ""}
+        { Source = 0; Value = ""; Valid = false }
 
 
     let UpdateStations (cdbM: CommonDataBusMessage, stations: ReservationStations) =
@@ -159,6 +159,7 @@ module ExecutionStageModule =
                 | Waiting(id, op, qj, qk, vj, vk, dest) when qj <> 0 || qk <> 0 -> updateState(ResolveSources(item, cdbM))
                 | Waiting(id, op, qj, qk, vj, vk, dest) when qj = 0 && qk = 0 -> Ready(id, op, vj, vk, dest)
                 | Ready(id, op, vj, vk, dest) -> Ready(id, op, vj, vk, dest)
+                | Running(id, op, vj, vk, dest) when cdbM.Source = dest && cdbM.Valid = true -> Empty id
                 | Running(id, op, vj, vk, dest) -> Running(id, op, vj, vk, dest) 
                 | Done(id, _, _) -> Empty id
                 | _ -> raise(Exception("unknown state"))

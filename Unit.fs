@@ -28,10 +28,10 @@ module DecodeStageModule =
     let InstructionLowDecode (inst: string) =
         let binary = inst |> strHexToBinary 
         let op = binary.Substring(0, 8)
-        let target = int(binary.Substring(8, 4))
-        let source1 = int(binary.Substring(12, 4))
-        let source2 = int(binary.Substring(16, 4))
-        let imm = binary.Substring(16, 16)
+        let target = Convert.ToInt32(binary.Substring(8, 4), 2)
+        let source1 = Convert.ToInt32(binary.Substring(12, 4), 2)
+        let source2 = Convert.ToInt32(binary.Substring(16, 4), 2)
+        let imm = Convert.ToInt32(binary.Substring(16, 16), 2).ToString()
         match op.ToLower() with
         | "00000001" -> Integer(Add, target, source1, source2)
         | "00010001" -> ImmediateInteger(Add, target, source1, imm)
@@ -85,13 +85,8 @@ module DispatchStageModule =
             | _ -> stations, false
         | [] -> stations, false
 
-
-    let getReadyStations (stations: ReservationStations ) =
-        stations |> List.where(fun it -> 
-            match it with
-            | Ready _ -> true
-            | _ -> false
-        ) |> List.sortByDescending(fun (s: ReservationStationUnit )-> 
+    let sortStationsDescending stations = 
+        stations |> List.sortByDescending(fun (s: ReservationStationUnit )-> 
             match s with
             | Empty id -> id
             | Waiting (id, _, _, _, _, _, _) -> id
@@ -99,6 +94,20 @@ module DispatchStageModule =
             | Running (id, _, _, _, _) -> id
             | Done (id, _, _) -> id
         )
+
+    let getReadyStations (stations: ReservationStations) =
+        stations |> List.where(fun it -> 
+            match it with
+            | Ready _ -> true
+            | _ -> false
+        ) |> sortStationsDescending
+
+    let getRunningStations (stations: ReservationStations) =
+        stations |> List.where(fun it -> 
+            match it with
+            | Running _ -> true
+            | _ -> false
+        ) |> sortStationsDescending
 
 
 module ExecutionStageModule =

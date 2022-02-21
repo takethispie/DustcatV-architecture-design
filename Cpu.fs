@@ -28,16 +28,15 @@ module Cpu =
 
         let execute (dataBus: CommonDataBusMessage) =
             stations <- UpdateStations(dataBus, stations)
-
             match getReadyStations (stations) with
             | head :: _ ->
                 stations <- setRunning (head, stations, ReplaceStation)
-
-                match stations.Head with
+                let runningStations = getRunningStations(stations)
+                match runningStations.Head with
                 | Running (id, op, vj, vk, dest) ->
                     match op with
                     | NopeOp -> dataBus
-                    | _ -> runFunctionalUnit (stations.Head, RunIntegerUnit, RunLoadStoreUnit)
+                    | _ -> runFunctionalUnit (runningStations.Head, RunIntegerUnit, RunLoadStoreUnit)
                 | _ -> raise (Exception("station is not in running state"))
             | [] -> dataBus
 
@@ -62,7 +61,10 @@ module Cpu =
                     | true -> [], bus
                     | false ->
                         match execute (bus) with
-                        | newBus -> ([], writeRegister(newBus))
+                        | newBus -> 
+                            let writtenRegister = writeRegister(newBus)
+                            stations <- UpdateStations(newBus, stations)
+                            ([], writtenRegister)
                 | head :: tail ->
                     let remaining =
                         match dispatch (head) with
